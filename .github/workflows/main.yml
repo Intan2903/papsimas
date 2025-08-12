@@ -2,9 +2,11 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
   pull_request:
-    branches: ["main"]
+    branches:
+      - main
 
 jobs:
   build:
@@ -30,7 +32,7 @@ jobs:
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.1"
+          php-version: '8.1'
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-scripts --no-progress
@@ -51,7 +53,6 @@ jobs:
       - name: Check existing tables
         run: |
           mysql -h 127.0.0.1 -u root -proot -e "USE test_db; SHOW TABLES;"
-
       - name: Run Laravel migrations
         run: php artisan migrate --env=testing
         env:
