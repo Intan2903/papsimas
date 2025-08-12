@@ -1,94 +1,36 @@
-name: CI/CD Pipeline
+name: Laravel CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ main ]
+    branches: [ "main" ]
 
 jobs:
-  build:
+  laravel-tests:
     runs-on: ubuntu-latest
-    services:
-      mysql:
-        image: mysql:5.7
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: test_db
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping --silent -uroot -proot"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
-
-      - name: Install system deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y lftp default-mysql-client
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: 8.2
+          extensions: mbstring, bcmath, intl
           coverage: none
 
-      - name: Install Composer deps
-        run: composer install --prefer-dist --no-interaction --no-progress --no-scripts
+      - name: Install dependencies
+        run: composer install --no-progress --prefer-dist --optimize-autoloader
 
-      - name: Prepare .env
+      - name: Setup environment
         run: |
           cp .env.example .env
           php artisan key:generate
-          php artisan config:cache
-        env:
-          APP_ENV: testing
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: test_db
-          DB_USERNAME: root
-          DB_PASSWORD: root
-
-      - name: Wait for MySQL to be ready
-        run: |
-          n=0
-          until mysql -h 127.0.0.1 -u root -proot -e "SELECT 1" >/dev/null 2>&1
-          do
-            n=$((n+1))
-            if [ $n -gt 30 ]; then
-              echo "MySQL did not become ready in time" >&2
-              exit 1
-            fi
-            echo "Waiting for MySQL... ($n/30)"
-            sleep 2
-          done
-          echo "MySQL is ready!"
-
-      - name: Show existing tables (debug)
-        run: mysql -h 127.0.0.1 -u root -proot -e "USE test_db; SHOW TABLES;"
 
       - name: Run migrations
         run: php artisan migrate --env=testing --force
-        env:
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: test_db
-          DB_USERNAME: root
-          DB_PASSWORD: root
 
       - name: Run tests
-        run: php artisan test --env=testing --no-interaction
-        env:
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: test_db
-          DB_USERNAME: root
-          DB_PASSWORD: root
+        run: php artisan test --env=testing
