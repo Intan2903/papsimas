@@ -34,7 +34,7 @@ class LaporanController extends Controller
             $tagihansQuery->whereYear('created_at', $tahun) // Filter berdasarkan tahun
                 ->whereMonth('created_at', $bulan); // Filter berdasarkan bulan
         }
-
+//nama intan//
         // Eksekusi query dan ambil hasilnya
         $tagihans = $tagihansQuery->get();
 
