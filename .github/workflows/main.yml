@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI
 
 on:
   push:
@@ -20,12 +20,7 @@ jobs:
           MYSQL_DATABASE: test_db
         ports:
           - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping --silent"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-        command: --explicit_defaults_for_timestamp
+        options: --health-cmd "mysqladmin ping --silent" --health-interval 10s
 
     steps:
       - name: Checkout code
@@ -55,21 +50,9 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: root
 
-      - name: Wait for MySQL
-        run: |
-          for i in {1..30}; do
-            if mysql -h 127.0.0.1 -u root -proot -e "SELECT 1" &> /dev/null; then
-              echo "MySQL is ready!"
-              break
-            fi
-            echo "Waiting for MySQL..."
-            sleep 2
-          done
-
       - name: Check existing tables
         run: |
           mysql -h 127.0.0.1 -u root -proot -e "USE test_db; SHOW TABLES;"
-
       - name: Run Laravel migrations
         run: php artisan migrate --env=testing
         env:
