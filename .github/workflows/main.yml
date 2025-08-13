@@ -24,7 +24,15 @@ jobs:
           --health-cmd="mysqladmin ping --silent"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=5
+          --health-retries=10
+
+    env: # Global env untuk semua step
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: test_db
+      DB_USERNAME: root
+      DB_PASSWORD: root
 
     steps:
       - name: Checkout code
@@ -39,7 +47,6 @@ jobs:
           php-version: '8.1'
           extensions: mbstring, bcmath, pdo_mysql
 
-      # Cache vendor folder
       - name: Cache Composer dependencies
         uses: actions/cache@v4
         with:
@@ -55,17 +62,10 @@ jobs:
         run: |
           cp .env.example .env
           php artisan key:generate
-        env:
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: test_db
-          DB_USERNAME: root
-          DB_PASSWORD: root
 
       - name: Wait for MySQL to be ready
         run: |
-          for i in {1..30}; do
+          for i in {1..40}; do
             mysql -h 127.0.0.1 -u root -proot -e "SELECT 1" && break
             echo "Waiting for MySQL..."
             sleep 2
@@ -76,16 +76,8 @@ jobs:
           mysql -h 127.0.0.1 -u root -proot -e "USE test_db; SHOW TABLES;"
 
       - name: Run Laravel migrations
-        run: php artisan migrate --env=testing
-        env:
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: test_db
-          DB_USERNAME: root
-          DB_PASSWORD: root
+        run: php artisan migrate --force --env=testing
 
-      # Cache Laravel config, routes, dan views
       - name: Optimize Laravel
         run: |
           php artisan config:cache
@@ -94,10 +86,3 @@ jobs:
 
       - name: Run Laravel tests
         run: php artisan test --env=testing
-        env:
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: test_db
-          DB_USERNAME: root
-          DB_PASSWORD: root
