@@ -55,6 +55,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-php-
 
+      - name: Cache Laravel bootstrap files
+        uses: actions/cache@v4
+        with:
+          path: bootstrap/cache
+          key: laravel-bootstrap-${{ github.sha }}
+          restore-keys: |
+            laravel-bootstrap-
+
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-scripts --no-progress
 
@@ -85,3 +93,4 @@ jobs:
 
       - name: Run Laravel tests
         run: php artisan test --env=testing
+
