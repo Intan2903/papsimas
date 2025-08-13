@@ -24,9 +24,9 @@ jobs:
           --health-cmd="mysqladmin ping --silent"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=10
+          --health-retries=5
 
-    env: # Global env untuk semua step
+    env:
       DB_CONNECTION: mysql
       DB_HOST: 127.0.0.1
       DB_PORT: 3306
@@ -65,18 +65,17 @@ jobs:
 
       - name: Wait for MySQL to be ready
         run: |
-          for i in {1..40}; do
+          for i in {1..30}; do
             mysql -h 127.0.0.1 -u root -proot -e "SELECT 1" && break
             echo "Waiting for MySQL..."
             sleep 2
           done
 
       - name: Check existing tables
-        run: |
-          mysql -h 127.0.0.1 -u root -proot -e "USE test_db; SHOW TABLES;"
+        run: mysql -h 127.0.0.1 -u root -proot -e "USE test_db; SHOW TABLES;"
 
       - name: Run Laravel migrations
-        run: php artisan migrate --force --env=testing
+        run: php artisan migrate --env=testing
 
       - name: Optimize Laravel
         run: |
