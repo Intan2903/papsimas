@@ -2,12 +2,14 @@ name: Laravel CI
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
-  laravel-tests:
+  build:
     runs-on: ubuntu-latest
 
     services:
@@ -21,7 +23,7 @@ jobs:
         ports:
           - 3306:3306
         options: >-
-          --health-cmd="mysqladmin ping --silent"
+          --health-cmd="mysqladmin ping -h localhost -uroot -proot"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
@@ -35,31 +37,32 @@ jobs:
       DB_PASSWORD: secret
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Setup PHP
+      - name: Install PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.1'
           extensions: mbstring, bcmath, pdo_mysql
           coverage: none
 
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: vendor
-          key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-php-
-
       - name: Install Composer dependencies
-        run: composer install --prefer-dist --no-interaction --no-progress
+        run: composer install --prefer-dist --no-interaction --no-scripts --no-progress
 
-      - name: Prepare Laravel environment
+      - name: Copy environment file
+        run: cp .env.example .env
+
+      - name: Generate app key
+        run: php artisan key:generate
+
+      - name: Wait for MySQL to be ready
         run: |
-          cp .env.example .env
-          php artisan key:generate
+          echo "Menunggu MySQL siap..."
+          until mysql -hmysql -ularavel -psecret -e "SELECT 1" > /dev/null 2>&1; do
+            sleep 3
+          done
+          echo "MySQL siap!"
 
       - name: Run migrations
         run: php artisan migrate --force
