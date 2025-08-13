@@ -21,29 +21,37 @@ jobs:
         ports:
           - 3306:3306
         options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 --silent"
+          --health-cmd="mysqladmin ping --silent"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=3
+          --health-retries=5
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Install lftp
-        run: sudo apt-get update && sudo apt-get install -y lftp
+        run: sudo apt-get install -y lftp
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
-          extensions: mbstring, intl, pdo_mysql
-          coverage: none
+          php-version: '8.1'
+          extensions: mbstring, bcmath, pdo_mysql
+
+      # Cache vendor folder supaya composer install lebih cepat
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-scripts --no-progress
 
-      - name: Configure environment
+      - name: Configure environment file
         run: |
           cp .env.example .env
           php artisan key:generate
@@ -58,17 +66,15 @@ jobs:
 
       - name: Wait for MySQL to be ready
         run: |
-          for i in {1..10}; do
-            if mysqladmin ping -h127.0.0.1 -uroot -proot --silent; then
-              echo "MySQL is ready!"
-              break
-            fi
+          for i in {1..30}; do
+            mysql -h 127.0.0.1 -u root -proot -e "SELECT 1" && break
             echo "Waiting for MySQL..."
-            sleep 3
+            sleep 2
           done
 
       - name: Check existing tables
-        run: mysql -h 127.0.0.1 -u root -proot -e "USE test_db; SHOW TABLES;"
+        run: |
+          mysql -h 127.0.0.1 -u root -proot -e "USE test_db; SHOW TABLES;"
 
       - name: Run Laravel migrations
         run: php artisan migrate --env=testing
