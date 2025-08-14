@@ -26,6 +26,8 @@ $router->aliasMiddleware('role', CheckRole::class);
 
 Route::resource('pengumuman', PengumumanController::class);
 
+Route::get('/', [AuthController::class, 'loginPage'])->name('login.page');
+
 Route::middleware('guest')->group(function () {
 
     Route::get('/login', [AuthController::class, 'loginPage'])->name('login.page');
