@@ -32,7 +32,7 @@ jobs:
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.1'
+          php-version: '8.2'
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-scripts --no-progress
@@ -73,38 +73,4 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: root
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Install lftp
-        run: sudo apt-get install -y lftp
-
-      - name: Print environment variables for debugging
-        run: |
-          echo "FTP_SERVER: ftp.siforta.my.id"
-          echo "FTP_USERNAME: sifortam2@siforta.my.id"
-        env:
-          FTP_SERVER: ftp.siforta.my.id
-          FTP_USERNAME: sifortam2@siforta.my.id
-
-      - name: Test FTP Connection
-        run: |
-          nc -zv ftp.siforta.my.id 21
-      - name: Deploy to server via FTP #tess
-        run: |
-          lftp -f "
-          set ftp:ssl-allow no
-          open $FTP_SERVER
-          user $FTP_USERNAME $FTP_PASSWORD
-          mirror --reverse --delete --verbose ./ /path/on/ftp/server
-          bye
-          "
-        env:
-          FTP_SERVER: ftp.siforta.my.id
-          FTP_USERNAME: sifortam2@siforta.my.id
-          FTP_PASSWORD: Siforta12345#
+ 
