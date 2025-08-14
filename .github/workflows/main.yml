@@ -1,4 +1,4 @@
-name: Laravel CI
+name: CI/CD Pipeline
 
 on:
   push:
@@ -14,58 +14,97 @@ jobs:
 
     services:
       mysql:
-        image: mysql:8.0
+        image: mysql:5.7
         env:
           MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: laravel
-          MYSQL_USER: laravel
-          MYSQL_PASSWORD: secret
+          MYSQL_DATABASE: test_db
         ports:
           - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h localhost -uroot -proot"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-
-    env:
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: laravel
-      DB_USERNAME: laravel
-      DB_PASSWORD: secret
+        options: --health-cmd "mysqladmin ping --silent" --health-interval 10s
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install PHP
+      - name: Install lftp
+        run: sudo apt-get install -y lftp
+
+      - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.1'
-          extensions: mbstring, bcmath, pdo_mysql
-          coverage: none
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-scripts --no-progress
 
-      - name: Copy environment file
-        run: cp .env.example .env
-
-      - name: Generate app key
-        run: php artisan key:generate
-
-      - name: Wait for MySQL to be ready
+      - name: Configure environment file
         run: |
-          echo "Menunggu MySQL siap..."
-          until mysql -hmysql -ularavel -psecret -e "SELECT 1" > /dev/null 2>&1; do
-            sleep 3
-          done
-          echo "MySQL siap!"
+          cp .env.example .env
+          php artisan key:generate
+          php artisan config:cache
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: test_db
+          DB_USERNAME: root
+          DB_PASSWORD: root
 
-      - name: Run migrations
-        run: php artisan migrate --force
+      - name: Check existing tables
+        run: |
+          mysql -h 127.0.0.1 -u root -proot -e "USE test_db; SHOW TABLES;"
+      - name: Run Laravel migrations
+        run: php artisan migrate --env=testing
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: test_db
+          DB_USERNAME: root
+          DB_PASSWORD: root
 
-      - name: Run tests
-        run: php artisan test
+      - name: Run Laravel tests
+        run: php artisan test --env=testing
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: test_db
+          DB_USERNAME: root
+          DB_PASSWORD: root
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install lftp
+        run: sudo apt-get install -y lftp
+
+      - name: Print environment variables for debugging
+        run: |
+          echo "FTP_SERVER: ftp.siforta.my.id"
+          echo "FTP_USERNAME: sifortam2@siforta.my.id"
+        env:
+          FTP_SERVER: ftp.siforta.my.id
+          FTP_USERNAME: sifortam2@siforta.my.id
+
+      - name: Test FTP Connection
+        run: |
+          nc -zv ftp.siforta.my.id 21
+      - name: Deploy to server via FTP #tess
+        run: |
+          lftp -f "
+          set ftp:ssl-allow no
+          open $FTP_SERVER
+          user $FTP_USERNAME $FTP_PASSWORD
+          mirror --reverse --delete --verbose ./ /path/on/ftp/server
+          bye
+          "
+        env:
+          FTP_SERVER: ftp.siforta.my.id
+          FTP_USERNAME: sifortam2@siforta.my.id
+          FTP_PASSWORD: Siforta12345#
